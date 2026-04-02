@@ -1,0 +1,22 @@
+# python
+__pycache__/
+*.pyc
+
+# env
+.env
+
+# virtual env
+venv/
+.env/
+
+# mac
+.DS_Store
+
+# logs
+*.log
+
+# qdrant data (if local storage later)
+storage/
+
+# streamlit cache
+.streamlit/
