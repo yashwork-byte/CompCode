@@ -30,6 +30,8 @@ def generate_answer(query, compressed_context, expanded_funcs, memory_context):
      - Explain how things work step-by-step
      - Connect functions logically
      - Identify possible issue
+     - Do NOT infer personal information from code
+     - Memory context is only for conversational continuity, not identity inference 
      - Be precise
      - Avoid generic explanations
      - Focus on THIS codebase only

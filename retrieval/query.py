@@ -17,11 +17,14 @@ def search_code(user_query, repo_path):
         embedding = embedding_model
     )
     
-    results = vector_db.similarity_search(query = user_query, k = 5)
+    results = vector_db.similarity_search(query = user_query, k = 3)
     
     call_graph, reverse_graph = build_call_graph(repo_path)
     expanded_funcs = expand_with_graph(results, call_graph, reverse_graph)
+    expanded_funcs = list(expanded_funcs)[:5]
 
+    func_map = {r.metadata["function"]: r for r in results}
+    
     scores = {}
 
     for r in results:
@@ -30,23 +33,17 @@ def search_code(user_query, repo_path):
 
     for func in expanded_funcs:
         if func not in scores:
-            scores[func] = 3
+            scores[func] = 2
 
     ranked_funcs = sorted(scores, key=scores.get, reverse=True)
 
     expanded_funcs = set(ranked_funcs[:6])
-    # print("\nInitial functions:")
-    # for r in results:
-    #   print(r.metadata["function"])
-
-    # print("\nExpanded functions from graph:")
-    # print(expanded_funcs)
     
     expanded_results = []
 
     for func in expanded_funcs:
-     new_docs = vector_db.similarity_search(func, k=1)
-     expanded_results.extend(new_docs)
+        if func in func_map:
+            expanded_results.append(func_map[func])
 
     all_results = results + expanded_results
 
@@ -59,10 +56,4 @@ def search_code(user_query, repo_path):
         seen.add(func)
         final_results.append(r)
                 
-    # for i, r in enumerate(final_results):
-    #     print(f"\n--- Result {i+1} ---")
-    #     print(f"File: {r.metadata['file']}")
-    #     print(f"Function: {r.metadata['function']}")
-    #     print(r.page_content[:300])
-
     return final_results, expanded_funcs

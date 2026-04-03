@@ -36,7 +36,12 @@ if st.button(" Run") and query:
 
             results, expanded = search_code(query, repo_path)
 
-            compressed_context = build_compressed_context(results)
+            filtered_results = [
+                r for r in results
+                if r.metadata["function"] in expanded
+                ]
+
+            compressed_context = build_compressed_context(filtered_results)
 
             answer = generate_answer(
                 query,
