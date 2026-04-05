@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 client = OpenAI()
 
+# Generate natural language summary for a function
 def generate_summary(chunk):
     prompt = f'''
     You are summarizing a function for comprehension purposes.
@@ -31,6 +32,7 @@ def generate_summary(chunk):
     
     return response.choices[0].message.content
 
+# Process chunk into text + metadata for vector DB
 def process_chunk(chunk):
     summary = generate_summary(chunk)
 
@@ -48,23 +50,28 @@ def process_chunk(chunk):
 
     return text, metadata
 
+# Index entire repository into vector database
 def index_repo(repo_path):
     chunks = extract_chunks(repo_path)
 
     texts = []
     metadatas = []
 
+    # Parallelize summary generation (I/O bound)
     with ThreadPoolExecutor(max_workers=5) as executor:
         results = list(executor.map(process_chunk, chunks))
 
+    # Collect processed chunks
     for text, metadata in results:
         texts.append(text)
         metadatas.append(metadata)
     
+    # Create embeddings
     embedding_model = OpenAIEmbeddings(
         model = 'text-embedding-3-small'
     )
     
+    # Store in Qdrant
     vector_store = QdrantVectorStore.from_texts(
         texts = texts,
         metadatas = metadatas,

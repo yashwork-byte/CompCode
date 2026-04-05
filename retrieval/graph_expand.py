@@ -1,8 +1,10 @@
+# Expand retrieved functions using call graph
 def expand_with_graph(results, call_graph, reverse_graph, max_depth = 2):
     expanded = set()
     visited = set()
     
     def dfs(func, depth):
+        # Stop if depth exceeded or already visited
         if depth > max_depth or func in visited:
             return
         

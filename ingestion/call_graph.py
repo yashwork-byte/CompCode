@@ -6,6 +6,7 @@ IGNORE_DIRS = {"venv", "__pycache__", ".git", "node_modules", ".idea"}
 def is_valid_path(path: Path):
     return not any(part in IGNORE_DIRS for part in path.parts)
 
+# Extract all function names in repo
 def get_functions(repo_path):
     functions = set()
     
@@ -27,7 +28,7 @@ def get_functions(repo_path):
                 
     return functions
 
-
+# Build forward + reverse call graph
 def build_call_graph(repo_path):
     graph = {}
     reverse_graph = {}
@@ -51,6 +52,7 @@ def build_call_graph(repo_path):
                 func_name = node.name
                 calls = []
                 
+                # Find function calls inside function body
                 for child in ast.walk(node):
                     if isinstance(child, ast.Call):
                         name = None
@@ -61,6 +63,7 @@ def build_call_graph(repo_path):
                         elif isinstance(child.func, ast.Attribute):
                             name = child.func.attr
                             
+                        # Only include repo-defined functions
                         if name in functions:
                             calls.append(name)
                             reverse_graph.setdefault(name, []).append(func_name)

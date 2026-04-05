@@ -4,6 +4,7 @@ load_dotenv()
 from openai import OpenAI
 client = OpenAI()
 
+# Generate final answer using LLM
 def generate_answer(query, compressed_context, expanded_funcs, memory_context):
     SYSTEM_PROMPT = f'''
      You are an expert software engineer.

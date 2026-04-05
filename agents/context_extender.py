@@ -4,6 +4,7 @@ load_dotenv()
 from openai import OpenAI
 client = OpenAI()
 
+# Build compressed context from retrieved chunks
 def build_compressed_context(chunks):
     context_parts = []
 
