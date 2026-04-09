@@ -2,7 +2,9 @@ from ingestion.index import index_repo
 from retrieval.query import search_code
 from agents.context_extender import build_compressed_context
 from agents.reasoner import generate_answer
+from agents.debugger import debugger_agent
 from memory.mem0 import init_memory, get_mem_context, save_memory
+from router import route_query
 
 mem_client = init_memory()
 
@@ -14,6 +16,8 @@ while True:
 
     mem_context = get_mem_context(mem_client, query)
     
+    route = route_query(query)
+    
     results, expanded_funcs = search_code(query, repo_path)
 
     filtered_results = [
@@ -23,12 +27,18 @@ while True:
 
     compressed_context = build_compressed_context(filtered_results)
 
-    answer = generate_answer(
-     query,
-     compressed_context,
-     expanded_funcs,
-     mem_context
+    if route == "debugger":
+        answer = debugger_agent(
+        query,
+        compressed_context
     )
+    else:
+        answer = generate_answer(
+         query,
+        compressed_context,
+        expanded_funcs,
+        mem_context
+        )
 
     print(answer)
     

@@ -17,23 +17,52 @@ def search_code(user_query, repo_path):
         embedding = embedding_model
     )
     
-    results = vector_db.similarity_search(query = user_query, k = 3)
+    results_with_scores = vector_db.similarity_search_with_score(query = user_query, k = 5)
+    results = [r for r, _ in results_with_scores]
     
+    # Normalize semantic scores
+    semantic_scores = {}
+
+    for r, score in results_with_scores:
+     func = r.metadata["function"]
+     semantic_scores[func] = 1 - score
+        
     call_graph, reverse_graph = build_call_graph(repo_path)
-    expanded_funcs = expand_with_graph(results, call_graph, reverse_graph)
-    expanded_funcs = list(expanded_funcs)[:5]
+    expanded_funcs = expand_with_graph(results_with_scores, call_graph, reverse_graph)
 
     func_map = {r.metadata["function"]: r for r in results}
     
+    # graph score (based on depth)
+    graph_scores = {}
+    for func, depth in expanded_funcs.items():
+      graph_scores[func] = 1 / (depth + 1)
+
+    # importance score
+    importance_scores = {}
+    for func in expanded_funcs:
+     importance_scores[func] = len(reverse_graph.get(func, []))
+
+    # normalize importance
+    max_importance = max(importance_scores.values(), default=0)
+    if max_importance > 0:
+     for func in importance_scores:
+          importance_scores[func] /= max_importance
+    else:
+       for func in importance_scores:
+            importance_scores[func] = 0
+
+    # combine scores
     scores = {}
 
-    for r in results:
-     func = r.metadata["function"]
-     scores[func] = 3
+    all_funcs = set(list(semantic_scores.keys()) + list(expanded_funcs.keys()))
 
-    for func in expanded_funcs:
-        if func not in scores:
-            scores[func] = 2
+    for func in all_funcs:
+      scores[func] = (
+            semantic_scores.get(func, 0) * 0.6 +
+            graph_scores.get(func, 0) * 0.3 +
+            importance_scores.get(func, 0) * 0.1
+        )
+
 
     ranked_funcs = sorted(scores, key=scores.get, reverse=True)
 
