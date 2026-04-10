@@ -40,6 +40,7 @@ def extract_chunks(repo_path):
                     chunk = {
                         'file': str(file),
                         'function': node.name,
+                        'id': f'{file}:{node.name}',
                         'code': chunk_code
                     }
                     
