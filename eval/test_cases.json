@@ -1,0 +1,22 @@
+[
+  {
+    "query": "How does indexing work?",
+    "expected_keywords": ["index_repo", "extract_chunks", "embedding"],
+    "type": "explanation"
+  },
+  {
+    "query": "What builds the call graph?",
+    "expected_keywords": ["build_call_graph"],
+    "type": "explanation"
+  },
+  {
+    "query": "create test_eval.py file inside eval folder",
+    "expected_action": "run_command",
+    "type": "debugger"
+  },
+  {
+    "query": "delete test_eval.py from eval folder",
+    "expected_action": "run_command",
+    "type": "debugger"
+  }
+]
