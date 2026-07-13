@@ -79,7 +79,7 @@ def search_code(user_query, repo, token=None):
     repo_path = resolve_repo(repo, token=token, update=False)
 
     # Reconcile the index with the current code on disk before answering, so
-    # edits (debugger, manual, git pull) are reflected. Cheap when nothing
+    # edits (the edit agent, manual, git pull) are reflected. Cheap when nothing
     # changed; only re-summarizes the functions that actually changed.
     sync_index(repo_path)
 

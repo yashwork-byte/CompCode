@@ -162,7 +162,7 @@ def _stored_hashes(qdrant):
 
 # Incrementally reconcile the index with the current state of the repo on disk.
 #
-# This is what keeps answers correct after the code changes (debugger edits,
+# This is what keeps answers correct after the code changes (the edit agent,
 # manual edits, git pull). Only changed/new functions are re-summarized (LLM
 # cost proportional to the diff); deleted functions are removed. If nothing
 # changed it's just a parse + a scroll — no LLM calls.

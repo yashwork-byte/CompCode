@@ -48,22 +48,3 @@ def judge_explanation(query, answer, context):
     except (json.JSONDecodeError, TypeError):
         return {"relevance": 0, "groundedness": 0, "correctness": 0,
                 "reason": "judge returned unparseable output"}
-    
-def judge_debugger(output, expected_action):
-    if expected_action == "run_command":
-        success_signals = [
-            "created",
-            "deleted",
-            "written",
-            "updated",
-            "file",
-        ]
-
-        out = output.lower()
-
-        if any(word in out for word in success_signals):
-            return {"score": 1, "reason": "Action likely executed"}
-        else:
-            return {"score": 0, "reason": "No action detected"}
-
-    return {"score": 0, "reason": "Unknown expected action"}

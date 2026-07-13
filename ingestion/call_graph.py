@@ -5,7 +5,7 @@ from ingestion.languages import parse_functions, walk, call_name, CALL_TYPES
 
 # repo_path -> (fingerprint, (graph, reverse_graph)). Cached so we don't
 # re-parse on every query, but keyed on a file-mtime fingerprint so the cache
-# invalidates the moment any source file changes (edits, git pull, debugger).
+# invalidates the moment any source file changes (edits, git pull, edit agent).
 _GRAPH_CACHE = {}
 
 
