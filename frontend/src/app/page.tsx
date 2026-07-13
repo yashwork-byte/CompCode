@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   FolderGit2,
@@ -39,6 +39,7 @@ import {
   type EditPlan,
   type StreamHandlers,
 } from "@/lib/api";
+import { on } from "@/lib/bus";
 
 export default function Home() {
   const [repo, setRepo] = useState("");
@@ -57,6 +58,20 @@ export default function Home() {
   const [review, setReview] = useState<{ threadId: string; plan: EditPlan } | null>(null);
   const [feedback, setFeedback] = useState("");
   const [resuming, setResuming] = useState(false);
+
+  // Menu-bar actions (the menu lives in the layout) talk to us via the bus.
+  useEffect(() => {
+    const offs = [
+      on("clear-query", () => setQuery("")),
+      on("reset-session", () => {
+        setQuery("");
+        setResult(null);
+        setReview(null);
+        setFeedback("");
+      }),
+    ];
+    return () => offs.forEach((off) => off());
+  }, []);
 
   async function handleIndex() {
     if (!repo.trim()) {
@@ -235,6 +250,7 @@ export default function Home() {
           <Search className="size-4 text-primary" /> ASK
         </div>
         <Textarea
+          id="query-box"
           placeholder="> how does indexing work?   ·   > add a mul() to calc.py"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
