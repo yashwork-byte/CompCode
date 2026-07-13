@@ -30,6 +30,8 @@ You can:
   verifies (compile + lint + tests) and self-corrects on failure
 - Keeps the index in sync automatically as the code changes
 - Maintains conversational memory across queries
+- Traces every step — graph nodes, LLM calls, and embeddings — to Langfuse
+  (tokens, cost, latency), grouped into sessions per conversation
 
 ---
 
@@ -79,6 +81,11 @@ Edit (local repos only):
 Create a `.env` file in the root:
 
     OPENAI_API_KEY=your_key_here
+
+    # optional — enables Langfuse tracing (see Observability below)
+    LANGFUSE_PUBLIC_KEY=pk-lf-...
+    LANGFUSE_SECRET_KEY=sk-lf-...
+    LANGFUSE_BASE_URL=https://cloud.langfuse.com   # or your region / self-host URL
 
 > **Verify safety:** on the edit path, the `verify` step can run the repo's test
 > suite (shell execution). This is **disabled by default**. To enable it (and only
@@ -132,6 +139,24 @@ Every request runs through one `StateGraph` (`graph/build.py`):
 
 Endpoints: `POST /query/stream` (SSE: `meta` → `token` → `interrupt`|`done`) and
 `POST /resume` (`{thread_id, decision, feedback}`).
+
+##  Observability (Langfuse)
+
+Every request is traced end-to-end with [Langfuse](https://langfuse.com). Two
+hooks cover the split between orchestration and the raw model calls:
+
+- The LangChain **`CallbackHandler`** is passed to the graph, so each run is a
+  trace with a **span per node** (`route`, `retrieve`, `plan_edit`, `verify`, …).
+- LLM and embedding calls go through the raw OpenAI SDK inside those nodes, so
+  swapping `from openai import OpenAI` → `from langfuse.openai import OpenAI`
+  (and a small `Embeddings` wrapper for vector search) records each as a
+  **generation** — prompt, completion, tokens, cost, latency — that auto-nests
+  under the right span.
+
+The `thread_id` is passed as the Langfuse **session id**, so every turn of a
+conversation (and its `/resume`) groups together. Tracing is optional: with no
+`LANGFUSE_*` keys set the app runs exactly the same, just untraced. View traces
+in your Langfuse dashboard under **Tracing → Traces**.
 
 ##  Staying in sync with code changes
 
