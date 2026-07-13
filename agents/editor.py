@@ -23,7 +23,7 @@ import difflib
 import subprocess
 from pathlib import Path
 
-from openai import OpenAI
+from langfuse.openai import OpenAI  # drop-in wrapper: records each call as a Langfuse generation
 
 client = OpenAI()
 

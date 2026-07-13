@@ -22,6 +22,9 @@ from pydantic import BaseModel
 
 from langgraph.types import Command
 
+from langfuse import get_client, propagate_attributes
+from langfuse.langchain import CallbackHandler
+
 from ingestion.index import index_repo
 from memory.mem0 import init_memory, get_mem_context, save_memory
 from graph.build import build_graph
@@ -39,6 +42,13 @@ app.add_middleware(
 # Compile the workflow once (MemorySaver persists paused edit reviews so a
 # later /resume can continue them within this process).
 GRAPH = build_graph()
+
+# Observability: the LangChain CallbackHandler traces each graph run as a
+# Langfuse trace with a span per node. Raw OpenAI calls inside the nodes are
+# traced separately by the langfuse.openai wrapper and auto-nest under these
+# spans. Reads LANGFUSE_* from the environment; disabled if keys are absent.
+langfuse = get_client()
+langfuse_handler = CallbackHandler()
 
 # Memory is optional: if it can't initialise (e.g. Qdrant/key missing) the
 # API still serves queries, just without conversational continuity.
@@ -102,19 +112,23 @@ def _drive(payload, thread_id: str):
     `interrupt` (edit awaiting review, carries the diff) or `done`.
     """
     cfg = _config(thread_id)
+    # Trace this run in Langfuse; the thread_id doubles as the session so all
+    # turns of one conversation (and its /resume) group together.
+    stream_cfg = {**cfg, "callbacks": [langfuse_handler]}
     interrupted = False
     try:
-        for mode, chunk in GRAPH.stream(payload, cfg, stream_mode=["custom", "updates"]):
-            if mode == "custom":
-                kind = chunk.get("type")
-                if kind == "meta":
-                    yield _sse("meta", chunk["data"])
-                elif kind == "token":
-                    yield _sse("token", {"text": chunk["text"]})
-            elif mode == "updates" and "__interrupt__" in chunk:
-                interrupt_obj = chunk["__interrupt__"][0]
-                interrupted = True
-                yield _sse("interrupt", {"thread_id": thread_id, **interrupt_obj.value})
+        with propagate_attributes(session_id=thread_id):
+            for mode, chunk in GRAPH.stream(payload, stream_cfg, stream_mode=["custom", "updates"]):
+                if mode == "custom":
+                    kind = chunk.get("type")
+                    if kind == "meta":
+                        yield _sse("meta", chunk["data"])
+                    elif kind == "token":
+                        yield _sse("token", {"text": chunk["text"]})
+                elif mode == "updates" and "__interrupt__" in chunk:
+                    interrupt_obj = chunk["__interrupt__"][0]
+                    interrupted = True
+                    yield _sse("interrupt", {"thread_id": thread_id, **interrupt_obj.value})
 
         if not interrupted:
             final = GRAPH.get_state(cfg).values

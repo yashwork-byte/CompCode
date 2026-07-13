@@ -6,12 +6,12 @@ import hashlib
 
 from ingestion.code_ingest import extract_chunks
 from ingestion.repo_source import resolve_repo
-from langchain_openai import OpenAIEmbeddings
+from ingestion.embeddings import LangfuseEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient, models
 from concurrent.futures import ThreadPoolExecutor
 
-from openai import OpenAI
+from langfuse.openai import OpenAI  # drop-in wrapper: records each call as a Langfuse generation
 client = OpenAI()
 
 QDRANT_URL = 'http://localhost:6333'
@@ -32,7 +32,7 @@ def _code_hash(code):
 
 
 def _embedding_model():
-    return OpenAIEmbeddings(model='text-embedding-3-small')
+    return LangfuseEmbeddings()
 
 
 # Generate natural language summary for a function

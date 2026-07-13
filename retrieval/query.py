@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from langchain_openai import OpenAIEmbeddings
+from ingestion.embeddings import LangfuseEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
 from qdrant_client import models
@@ -83,7 +83,7 @@ def search_code(user_query, repo, token=None):
     # changed; only re-summarizes the functions that actually changed.
     sync_index(repo_path)
 
-    embedding_model = OpenAIEmbeddings(model='text-embedding-3-small')
+    embedding_model = LangfuseEmbeddings()
 
     vector_db = QdrantVectorStore.from_existing_collection(
         url=QDRANT_URL,

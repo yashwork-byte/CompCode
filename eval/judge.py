@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from openai import OpenAI
+from langfuse.openai import OpenAI  # drop-in wrapper: records each call as a Langfuse generation
 import json
 
 client = OpenAI()
