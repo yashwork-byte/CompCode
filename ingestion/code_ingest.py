@@ -1,59 +1,30 @@
-import ast
-from pathlib import Path
+from ingestion.ast_utils import iter_source_files, make_uid
+from ingestion.languages import parse_functions
 
-# Directories to ignore while scanning repo
-IGNORE_DIRS = {"venv", "__pycache__", ".git", "node_modules", ".idea"}
 
-# Check if a file path should be processed
-def is_valid_path(path: Path):
-    return not any(part in IGNORE_DIRS for part in path.parts)
-
-# Extract function-level chunks from repo
+# Extract function-level chunks from a repo (any supported language).
 def extract_chunks(repo_path):
     chunks = []
-    
-    # Recursively find all Python files
-    for file in Path(repo_path).rglob('*.py'):
-        
-        # Skip ignored directories
-        if not is_valid_path(file):
+
+    for file, lang in iter_source_files(repo_path):
+        try:
+            text = file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
             continue
-        
-        # Read file content
-        with open(file, 'r', encoding = 'utf-8') as f:
-            code = f.read()
-            
-            # Parse code into AST
-            try:
-                tree = ast.parse(code)
-            except:
+
+        file_str = str(file)
+
+        for name, node, source in parse_functions(lang, text):
+            code = source[node.start_byte:node.end_byte].decode("utf-8", "replace")
+            if not code.strip():
                 continue
-            
-            # Traverse AST to find function definitions
-            for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef):
-                    
-                    # Extract exact source code of function
-                    chunk_code = ast.get_source_segment(code, node)
-                    
-                    # Store metadata + code
-                    chunk = {
-                        'file': str(file),
-                        'function': node.name,
-                        'id': f'{file}:{node.name}',
-                        'code': chunk_code
-                    }
-                    
-                    chunks.append(chunk)
-                    
-    # print(f"Total chunks created: {len(chunks)}")
-    
-    # files_seen = set()
 
-    # for chunk in chunks:
-    #     files_seen.add(chunk["file"])
+            chunks.append({
+                "file": file_str,
+                "function": name,
+                "uid": make_uid(file_str, name),
+                "language": lang,
+                "code": code,
+            })
 
-    # print("\nFiles indexed:")
-    # for f in files_seen:
-    #     print(f)
     return chunks

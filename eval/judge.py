@@ -39,10 +39,15 @@ def judge_explanation(query, answer, context):
         model = 'gpt-4.1-mini',
         messages = [
             {'role': 'user', 'content': prompt}
-        ]
+        ],
+        response_format = {"type": "json_object"}
     )
-    
-    return json.loads(response.choices[0].message.content)
+
+    try:
+        return json.loads(response.choices[0].message.content)
+    except (json.JSONDecodeError, TypeError):
+        return {"relevance": 0, "groundedness": 0, "correctness": 0,
+                "reason": "judge returned unparseable output"}
     
 def judge_debugger(output, expected_action):
     if expected_action == "run_command":

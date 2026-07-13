@@ -18,14 +18,10 @@ while True:
     
     route = route_query(query)
     
+    # search_code already returns the curated, ranked functions.
     results, expanded_funcs = search_code(query, repo_path)
 
-    filtered_results = [
-    r for r in results
-    if r.metadata["function"] in expanded_funcs
-    ]   
-
-    compressed_context = build_compressed_context(filtered_results)
+    compressed_context = build_compressed_context(results)
 
     if route == "debugger":
         answer = debugger_agent(

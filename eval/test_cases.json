@@ -1,7 +1,7 @@
 [
   {
     "query": "How does indexing work?",
-    "expected_keywords": ["index_repo", "extract_chunks", "embedding"],
+    "expected_keywords": ["index_repo", "extract_chunks", "process_chunk"],
     "type": "explanation"
   },
   {

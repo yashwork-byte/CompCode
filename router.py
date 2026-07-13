@@ -20,10 +20,10 @@ def route_query(user_query):
             Example:
             
             Q. What is the significance of router.py file?
-            A. Codebase
-               
+            A. codebase
+
             Q. Delete xyz.py file
-            A. Debugger
+            A. debugger
     '''
     
     response = client.chat.completions.create(

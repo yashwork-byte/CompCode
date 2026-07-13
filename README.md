@@ -54,8 +54,8 @@ You can:
 
 ### 1. Clone the repo
 
-    git clone https://github.com/yashwork-byte/CompCode
-    cd CompCode
+    git clone https://github.com/yashwork-byte/CodeComp
+    cd CodeComp
 
 ### 2. Install dependencies
 
@@ -71,27 +71,91 @@ Create a `.env` file in the root:
 
     OPENAI_API_KEY=your_key_here
 
+> **Debugger safety:** the debugger agent runs shell commands the model
+> generates. Execution is **disabled by default**. To enable it (and only in a
+> throwaway/sandboxed environment) set `CODECOMP_ALLOW_EXEC=1`. Obviously
+> destructive commands are refused even when enabled.
+
 ---
 
 ##  Run
+
+You can drive CodeComp three ways. All of them need Qdrant running and
+`OPENAI_API_KEY` set.
+
+### Web app (FastAPI + Next.js/shadcn) — recommended
+
+    # 1. backend API
+    uvicorn api:app --reload --port 8000
+
+    # 2. frontend (in another terminal)
+    cd frontend
+    npm install
+    npm run dev            # http://localhost:3000
+
+The frontend talks to the API at `NEXT_PUBLIC_API_URL` (default
+`http://localhost:8000`, set in `frontend/.env.local`).
 
 ### CLI
 
     python main.py
 
-### Streamlit UI
+---
 
-    streamlit run app.py
+##  Agent workflow (LangGraph)
+
+Every request runs through one `StateGraph` (`graph/build.py`):
+
+    route → retrieve → ┬─ qa ───────────────▶ answer (streamed)
+                       ├─ edit + remote ────▶ edit_unavailable
+                       └─ edit + local ─────▶ plan_edit → human_gate* → apply_edit → verify
+                                                              (interrupt)              │
+                                     reject+feedback ↺ plan_edit          pass ▶ reindex ▶ summary
+                                                                          retry ↺ plan_edit
+                                                                          fail  ▶ report
+
+- **Routing** picks QA vs. edit. **QA** works on local *and* GitHub repos; **edit** is
+  **local-only** (verify needs a real checkout with deps), so remote edit requests are
+  refused via a conditional edge.
+- **Human gate:** the graph `interrupt()`s before writing anything — the UI shows the
+  proposed **diff**; you Approve (apply) or Reject with feedback (loops back to re-plan). A
+  `MemorySaver` checkpointer + `thread_id` persist the pause; the API resumes with
+  `Command(resume=...)`.
+- **Self-correction:** after applying, `verify` runs compile + lint (and the repo's tests
+  when `CODECOMP_ALLOW_EXEC=1`). On failure the error trace feeds back to `plan_edit`, bounded
+  by a retry limit. On success the index is refreshed (`reindex`) so the next question sees the
+  new code.
+
+Endpoints: `POST /query/stream` (SSE: `meta` → `token` → `interrupt`|`done`) and
+`POST /resume` (`{thread_id, decision, feedback}`).
+
+##  Staying in sync with code changes
+
+The index self-heals. Every query first runs an **incremental sync**: it hashes
+each function on disk, compares against what's indexed, and re-summarizes only
+the functions that changed (deleting ones that were removed). So edits — whether
+from the debugger, your editor, or a `git pull` — are reflected on the next
+question, with no manual re-index and no full-repo LLM cost. The call graph is
+cached on a file-mtime fingerprint, so it invalidates on any edit too.
+
+##  Repositories & languages
+
+- **Local or GitHub:** pass a local path *or* a GitHub URL
+  (`https://github.com/user/repo`). Remote repos are shallow-cloned into
+  `~/.codecomp/repos`. Public repos need no auth; private repos take a token
+  (`GITHUB_TOKEN` env, or the token field in the UI).
+- **Languages:** Python, JavaScript, TypeScript/TSX, Go, Java, Rust, and
+  C/C++ — parsed with tree-sitter. Adding a language is a small entry in
+  `ingestion/languages.py`.
 
 ---
 
 ##  Limitations
 
-- Python-only support  
 - Function-level granularity  
 - Heuristic ranking  
-- Not optimized for large or multi-language repos  
-- Works best on local repositories  
+- Name-based call resolution (over-connects; not scope-aware)  
+- Not optimized for very large repos  
 
 ---
 
@@ -106,11 +170,11 @@ Create a `.env` file in the root:
 
 ##  Future Work
 
-- Debugging agent with tool calling  
+- Scope-aware call resolution (imports, class scope)  
 - Better ranking strategies  
-- Multi-language support  
 - Scalable background processing (RQ)  
 - Improved memory isolation  
+- Streaming answers to the UI  
 
 ---
 

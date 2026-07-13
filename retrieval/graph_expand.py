@@ -1,28 +1,28 @@
-# Expand retrieved functions using call graph
-def expand_with_graph(results, call_graph, reverse_graph, max_depth = 2):
+# Expand retrieved functions using the call graph.
+#
+# `results` is a list of (Document, score) seeds. Nodes are uids
+# ("file::function"). Returns {uid: shallowest_depth_reached}.
+def expand_with_graph(results, call_graph, reverse_graph, max_depth=2):
     expanded = {}
-    visited = set()
-    
-    def dfs(func, depth):
+
+    def dfs(uid, depth):
         if depth > max_depth:
             return
-        
-        # If already visited with lower depth, skip
-        if func in expanded and expanded[func] <= depth:
+
+        # Skip only if we've already reached this node at an equal or
+        # shallower depth (nothing new to gain by going deeper).
+        if uid in expanded and expanded[uid] <= depth:
             return
-        
-        expanded[func] = depth
-        
-        #downstream
-        for callee in call_graph.get(func, []):
-            dfs(callee, depth+1)
-            
-        #upstream
-        for callee in reverse_graph.get(func, []):
-            dfs(callee, depth+1)
-            
+
+        expanded[uid] = depth
+
+        # downstream (callees) + upstream (callers)
+        for callee in call_graph.get(uid, []):
+            dfs(callee, depth + 1)
+        for caller in reverse_graph.get(uid, []):
+            dfs(caller, depth + 1)
+
     for r, _ in results:
-        func_name = r.metadata['function']
-        dfs(func_name, 0)
-        
+        dfs(r.metadata["uid"], 0)
+
     return expanded

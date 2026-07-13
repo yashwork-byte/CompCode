@@ -14,7 +14,12 @@ from eval.metrics import retrieval_recall
 def run_eval(repo_path):
     index_repo(repo_path)
 
-    tests = json.load(open("eval/test_cases.json"))
+    with open("eval/test_cases.json") as f:
+        tests = json.load(f)
+
+    recalls = []
+    correctness = []
+    debugger_scores = []
 
     for t in tests:
         q = t["query"]
@@ -27,17 +32,19 @@ def run_eval(repo_path):
         print("route:", route)
 
         if typ == "explanation":
+            # search_code already returns the curated, ranked functions.
             results, expanded = search_code(q, repo_path)
+            funcs = [r.metadata["function"] for r in results]
 
-            filtered = [r for r in results if r.metadata["function"] in expanded]
-            funcs = [r.metadata["function"] for r in filtered]
-
-            context = build_compressed_context(filtered)
-
+            context = build_compressed_context(results)
             ans = generate_answer(q, context, expanded, "")
 
             recall = retrieval_recall(t.get("expected_keywords", []), funcs)
             judge = judge_explanation(q, ans, context)
+
+            recalls.append(recall)
+            if isinstance(judge, dict) and "correctness" in judge:
+                correctness.append(judge["correctness"])
 
             print("recall:", recall)
             print("judge:", judge)
@@ -45,9 +52,21 @@ def run_eval(repo_path):
         else:
             out = debugger_agent(q, "")
             judge = judge_debugger(out, t.get("expected_action"))
+            debugger_scores.append(judge.get("score", 0))
 
             print("output:", out)
             print("judge:", judge)
+
+    # -------- AGGREGATE SUMMARY --------
+    def avg(xs):
+        return round(sum(xs) / len(xs), 3) if xs else None
+
+    print("\n=== SUMMARY ===")
+    print(f"explanation cases : {len(recalls)}")
+    print(f"mean recall       : {avg(recalls)}")
+    print(f"mean correctness  : {avg(correctness)} (0-5)")
+    print(f"debugger cases    : {len(debugger_scores)}")
+    print(f"debugger pass rate: {avg(debugger_scores)}")
 
 
 if __name__ == "__main__":
