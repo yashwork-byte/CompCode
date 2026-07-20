@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
 import uuid
 import hashlib
 
@@ -14,7 +15,9 @@ from concurrent.futures import ThreadPoolExecutor
 from langfuse.openai import OpenAI  # drop-in wrapper: records each call as a Langfuse generation
 client = OpenAI()
 
-QDRANT_URL = 'http://localhost:6333'
+# Local default; set QDRANT_URL/QDRANT_API_KEY to point at Qdrant Cloud in prod.
+QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
+QDRANT_API_KEY = os.getenv('QDRANT_API_KEY')  # None for local, required for Qdrant Cloud
 COLLECTION_NAME = 'codebase'
 
 # Stable namespace so a given uid always maps to the same Qdrant point id.
@@ -116,7 +119,7 @@ def index_repo(repo, token=None):
     # (deleted functions, or an older metadata schema) can't linger. Combined
     # with deterministic ids below, this guarantees no duplicate accumulation.
     try:
-        QdrantClient(url=QDRANT_URL).delete_collection(COLLECTION_NAME)
+        QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY).delete_collection(COLLECTION_NAME)
     except Exception:
         pass
 
@@ -126,6 +129,7 @@ def index_repo(repo, token=None):
         ids = ids,
         embedding = _embedding_model(),
         url = QDRANT_URL,
+        api_key = QDRANT_API_KEY,
         collection_name = COLLECTION_NAME
     )
 
@@ -167,7 +171,7 @@ def _stored_hashes(qdrant):
 # cost proportional to the diff); deleted functions are removed. If nothing
 # changed it's just a parse + a scroll — no LLM calls.
 def sync_index(repo_path):
-    qdrant = QdrantClient(url=QDRANT_URL)
+    qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
     # Collection missing entirely -> do a full index.
     try:
@@ -201,6 +205,7 @@ def sync_index(repo_path):
         if texts:
             store = QdrantVectorStore.from_existing_collection(
                 url=QDRANT_URL,
+                api_key=QDRANT_API_KEY,
                 collection_name=COLLECTION_NAME,
                 embedding=_embedding_model(),
             )

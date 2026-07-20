@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
+
 from ingestion.embeddings import LangfuseEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
@@ -11,7 +13,9 @@ from ingestion.repo_source import resolve_repo
 from ingestion.index import sync_index
 from retrieval.graph_expand import expand_with_graph
 
-QDRANT_URL = 'http://localhost:6333'
+# Local default; set QDRANT_URL/QDRANT_API_KEY to point at Qdrant Cloud in prod.
+QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
+QDRANT_API_KEY = os.getenv('QDRANT_API_KEY')  # None for local, required for Qdrant Cloud
 COLLECTION_NAME = 'codebase'
 
 # Scoring weights for the final ranking
@@ -87,6 +91,7 @@ def search_code(user_query, repo, token=None):
 
     vector_db = QdrantVectorStore.from_existing_collection(
         url=QDRANT_URL,
+        api_key=QDRANT_API_KEY,
         collection_name=COLLECTION_NAME,
         embedding=embedding_model,
     )

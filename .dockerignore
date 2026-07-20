@@ -1,0 +1,16 @@
+# Keep the backend image small and secret-free.
+.git
+.gitignore
+venv/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.env
+.env*.local
+frontend/
+DECISIONS.md
+eval/
+storage/
+*.md
+.codecomp/
