@@ -29,6 +29,23 @@ def _point_id(uid):
     return str(uuid.uuid5(_UID_NAMESPACE, uid))
 
 
+def _ensure_payload_index(client):
+    """Create the payload index the query path needs to filter by uid.
+
+    Local Qdrant lets you filter on any field (slow scan); Qdrant Cloud rejects
+    filtering on an unindexed field with a 400. The graph-expansion lookup
+    filters by metadata.uid, so index it. Idempotent — safe to call repeatedly.
+    """
+    try:
+        client.create_payload_index(
+            collection_name=COLLECTION_NAME,
+            field_name="metadata.uid",
+            field_schema=models.PayloadSchemaType.KEYWORD,
+        )
+    except Exception:
+        pass
+
+
 def _code_hash(code):
     """Content hash of a function body, used to detect changes on re-sync."""
     return hashlib.sha1(code.encode('utf-8', 'replace')).hexdigest()
@@ -123,7 +140,7 @@ def index_repo(repo, token=None):
     except Exception:
         pass
 
-    QdrantVectorStore.from_texts(
+    store = QdrantVectorStore.from_texts(
         texts = texts,
         metadatas = metadatas,
         ids = ids,
@@ -132,6 +149,7 @@ def index_repo(repo, token=None):
         api_key = QDRANT_API_KEY,
         collection_name = COLLECTION_NAME
     )
+    _ensure_payload_index(store.client)
 
     languages = sorted({m.get("language", "") for m in metadatas if m.get("language")})
     print(f'Indexing completed ({len(texts)} functions)')
@@ -180,6 +198,10 @@ def sync_index(repo_path):
         exists = False
     if not exists:
         return index_repo(repo_path)
+
+    # Ensure the uid payload index exists (collections indexed before this was
+    # added, or on Qdrant Cloud, would otherwise 400 on the query-path filter).
+    _ensure_payload_index(qdrant)
 
     # Current state from disk (parsing only, no LLM).
     chunks = extract_chunks(repo_path)
